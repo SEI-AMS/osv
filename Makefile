@@ -1669,6 +1669,11 @@ fs +=	ramfs/ramfs_vfsops.o \
 fs +=	devfs/devfs_vnops.o \
 	devfs/device.o
 
+fs += mfs/mfs_vfsops.o \
+      mfs/mfs_vnops.o  \
+      mfs/mfs_inode.o  \
+      mfs/mfs_cache.o
+
 fs +=	procfs/procfs_vnops.o
 
 objects += $(addprefix fs/, $(fs))

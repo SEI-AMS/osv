@@ -2212,6 +2212,7 @@ static void import_extra_zfs_pools(void)
 extern "C" void mount_zfs_rootfs(bool pivot_root)
 {
     int ret;
+    bool is_zfs = false;
 
     if (mkdir("/zfs", 0755) < 0)
         kprintf("failed to create /zfs, error = %s\n", strerror(errno));
@@ -2220,7 +2221,14 @@ extern "C" void mount_zfs_rootfs(bool pivot_root)
     if (ret)
         kprintf("failed to unmount /dev, error = %s\n", strerror(ret));
 
-    ret = sys_mount("/dev/vblk0.1", "/zfs", "zfs", 0, (void *)"osv/zfs");
+    // We attempt to mount as MFS, if that returns an error code we try ZFS.
+    // We still try to mount on /zfs so there is only one mount point
+    ret = sys_mount("/dev/vblk0.1", "/zfs", "mfs", 0, 0);
+    if (ret) {
+        ret = sys_mount("/dev/vblk0.1", "/zfs", "zfs", 0, (void *)"osv/zfs");
+        is_zfs = true;
+    }
+
     if (ret)
         kprintf("failed to mount /zfs, error = %s\n", strerror(ret));
 
@@ -2254,8 +2262,9 @@ extern "C" void mount_zfs_rootfs(bool pivot_root)
         }
     }
     endmntent(ent);
-
-    import_extra_zfs_pools();
+    if (is_zfs) {
+        import_extra_zfs_pools();
+    }
 }
 
 extern "C" void unmount_rootfs(void)
