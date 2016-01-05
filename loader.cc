@@ -303,6 +303,23 @@ std::tuple<int, char**> parse_options(int ac, char** av)
     return std::make_tuple(ac, av);
 }
 
+// Added to "fix" commands just before execution
+void prepare_command(std::vector<std::string>& cmd) {
+    for (auto it = cmd.begin(); it < cmd.end(); ++it) {
+        char *env = strchr(it->c_str(), '$');
+        if (env) {
+            *env = '\0';
+            env++;
+            auto tmp = getenv(env);
+            if (tmp) {
+                cmd[std::distance(cmd.begin(), it)] = tmp;
+            } else {
+                cmd[std::distance(cmd.begin(), it)] = "";
+            }
+        }
+    }
+}
+
 // return the std::string and the commands_args poiting to them as a move
 std::vector<std::vector<std::string> > prepare_commands(int ac, char** av)
 {
@@ -316,20 +333,7 @@ std::vector<std::vector<std::string> > prepare_commands(int ac, char** av)
 
     // concatenate everything
     for (auto i = 0; i < ac; i++) {
-        std::string arg("");
-        char* env = strchr(av[i],'$');
-        if (av[i] && env) {
-            *env = '\0';
-            env++;
-            auto tmp = getenv(env);
-            arg = av[i];
-            if (tmp) {
-                arg += tmp;
-            }
-        } else {
-            arg = av[i];
-        }
-        line += arg + " ";
+        line += std::string(av[i]) + " ";
     }
 
     commands = osv::parse_command_line(line, ok);
@@ -498,6 +502,7 @@ void* do_main_thread(void *_main_args)
     std::vector<shared_app_t> detached;
     for (auto &it : commands) {
         std::vector<std::string> newvec(it.begin(), std::prev(it.end()));
+        prepare_command(newvec); // Do final env parsing on command
         auto suffix = it.back();
         try {
             bool background = (suffix == "&") || (suffix == "&!");
